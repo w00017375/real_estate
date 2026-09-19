@@ -1,0 +1,32 @@
+.env
+dashboard/.cache/
+
+# Local databases and SQLite runtime files contain collected contacts.
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Browser sessions and authentication state.
+.uybor_auth_profile/
+*auth_profile*/
+
+# Raw parser output and local backups are runtime data, not source code.
+output_json/
+json_output/
+backups/
+
+# Python and test caches.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local JavaScript dependencies and generated inspection artifacts.
+node_modules/
+*.inspect.ndjson
+
+# Local logs and OS/editor noise.
+*.log
+.DS_Store
+Thumbs.db

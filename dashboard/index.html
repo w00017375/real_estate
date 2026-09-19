@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f4f3ee" />
+    <title>Карта аренды — Ташкент</title>
+    <link rel="stylesheet" href="/vendor/leaflet/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <main class="workspace">
+        <section class="map-panel" aria-label="Интерактивная карта районов">
+          <div id="map" role="application" aria-label="Карта Ташкента и других городов"></div>
+
+          <div class="scope-switcher" role="group" aria-label="Территория карты">
+            <button class="scope-button is-active" type="button" data-scope="city">
+              Ташкент
+              <span id="city-tab-count">—</span>
+            </button>
+            <button class="scope-button" type="button" data-scope="country">
+              Другие города
+              <span id="country-tab-count">—</span>
+            </button>
+          </div>
+
+          <div class="air-quality-dock" id="air-quality-dock" hidden>
+            <label class="air-quality-switch" for="air-quality-toggle">
+              <svg class="air-quality-switch__icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 9.5h9.5a2.7 2.7 0 1 0-2.4-4" />
+                <path d="M4 14h13.5a2.5 2.5 0 1 1-2.2 3.7" />
+                <path d="M4 18h5" />
+              </svg>
+              <span class="air-quality-switch__copy">
+                <strong>Качество воздуха</strong>
+                <small id="air-quality-status">Загрузка…</small>
+              </span>
+              <input id="air-quality-toggle" type="checkbox" role="switch" aria-label="Показать качество воздуха" />
+              <span class="air-quality-switch__track" aria-hidden="true"><span></span></span>
+            </label>
+          </div>
+
+          <div class="air-quality-legend" id="air-quality-legend" hidden aria-label="Градиент PM₂.₅ по текущим точкам Ташкента">
+            <strong id="air-quality-reading">PM₂.₅ <small>мкг/м³</small></strong>
+            <span class="air-quality-legend__caption">диапазон на карте</span>
+            <span id="air-quality-range-min">—</span>
+            <span class="air-quality-legend__scale" aria-hidden="true"></span>
+            <span id="air-quality-range-max">—</span>
+          </div>
+
+          <div class="map-actions" aria-label="Быстрые фильтры">
+            <div class="seller-quick-filters" role="radiogroup" aria-label="Тип продавца">
+              <button class="quick-filter quick-filter--seller" type="button" role="radio" data-quick-filter="any" aria-checked="true">Любое</button>
+              <button class="quick-filter quick-filter--seller" type="button" role="radio" data-quick-filter="owner" aria-checked="false">От первых рук</button>
+              <button class="quick-filter quick-filter--seller" type="button" role="radio" data-quick-filter="professional" aria-checked="false">Риэлтор / агентство</button>
+            </div>
+            <button class="quick-filter quick-filter--metro" type="button" data-quick-filter="metro" aria-pressed="false">
+              <svg class="quick-filter__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" /><path d="M8 8h8M8 17l-2 3m10-3 2 3" /><circle cx="9" cy="13" r="1" /><circle cx="15" cy="13" r="1" /></svg>
+              <span>Рядом с метро</span>
+            </button>
+          </div>
+
+          <section class="map-filter-dock is-collapsed" id="map-filter-dock" aria-label="Фильтры по удобствам и окружению">
+            <button class="map-filter-master-toggle" id="map-filter-master-toggle" type="button" aria-expanded="false" aria-label="Открыть фильтры удобств и окружения">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4" /></svg>
+              <span class="map-filter-toggle-copy">
+                <strong>Фильтры карты</strong>
+                <small>Районы обновятся сразу</small>
+              </span>
+              <svg class="map-filter-toggle-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
+            </button>
+
+            <div class="map-filter-menu is-permanent">
+              <div class="map-filter-menu__heading">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19V9l6-5 6 5v10h-4v-6h-4v6H6Z" /></svg>
+                <span>Удобства</span>
+                <b id="amenity-selected-count" hidden>0</b>
+              </div>
+              <div class="map-filter-popover">
+                <div class="choice-grid" id="amenity-options"></div>
+              </div>
+            </div>
+
+            <div class="map-filter-menu is-permanent">
+              <div class="map-filter-menu__heading">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s6-6.1 6-12a6 6 0 1 0-12 0c0 5.9 6 12 6 12Z" /><circle cx="12" cy="9" r="2" /></svg>
+                <span>Места рядом</span>
+                <b id="nearby-selected-count" hidden>0</b>
+              </div>
+              <div class="map-filter-popover map-filter-popover--right">
+                <div class="choice-grid" id="nearby-options"></div>
+              </div>
+            </div>
+
+            <button class="map-filter-reset" id="reset-map-filters" type="button" hidden>Сбросить</button>
+          </section>
+
+        </section>
+
+        <button class="list-toggle sidebar-handle" id="list-toggle" type="button" aria-expanded="true" aria-label="Скрыть список">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6" /></svg>
+        </button>
+
+        <aside class="results-panel" aria-label="Объявления и фильтры">
+          <div class="results-heading">
+            <div>
+              <p class="eyebrow" id="selection-eyebrow">Вся территория</p>
+              <h1 id="selection-title">Ташкент</h1>
+              <p id="selection-copy">Объявления во всех районах города</p>
+            </div>
+            <div class="results-heading-actions">
+              <button class="filter-toggle results-filter-toggle" id="filter-toggle" type="button" aria-expanded="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4" /></svg>
+                <span>Фильтры</span>
+                <b id="active-filter-count" hidden>0</b>
+              </button>
+              <button class="clear-district" id="clear-district" type="button" hidden>
+                Все районы
+              </button>
+            </div>
+          </div>
+
+          <form class="filters is-collapsed" id="filters">
+            <div class="filters-header">
+              <span>Фильтры</span>
+              <button id="reset-filters" type="button">Сбросить</button>
+            </div>
+
+            <label class="field field-price">
+              <span>Цена в месяц</span>
+              <div class="price-inputs">
+                <input id="price-min" inputmode="numeric" type="number" min="0" placeholder="от" />
+                <span>—</span>
+                <input id="price-max" inputmode="numeric" type="number" min="0" placeholder="до" />
+              </div>
+            </label>
+
+            <div class="filter-more">
+              <div class="filter-grid">
+                <label class="field">
+                  <span>Валюта</span>
+                  <select id="currency"><option value="">Любая</option></select>
+                </label>
+
+                <label class="field">
+                  <span>Комнаты</span>
+                  <select id="rooms"><option value="">Любое число</option></select>
+                </label>
+
+                <label class="field">
+                  <span>Площадь, м²</span>
+                  <div class="price-inputs">
+                    <input id="area-min" inputmode="decimal" type="number" min="0" step="0.1" placeholder="от" />
+                    <span>—</span>
+                    <input id="area-max" inputmode="decimal" type="number" min="0" step="0.1" placeholder="до" />
+                  </div>
+                </label>
+
+                <label class="field">
+                  <span>Тип жилья</span>
+                  <select id="building-type"><option value="">Любой</option></select>
+                </label>
+
+                <label class="field">
+                  <span>Этаж</span>
+                  <div class="price-inputs">
+                    <input id="floor-min" inputmode="numeric" type="number" min="0" placeholder="от" />
+                    <span>—</span>
+                    <input id="floor-max" inputmode="numeric" type="number" min="0" placeholder="до" />
+                  </div>
+                </label>
+
+                <label class="field">
+                  <span>Сделка</span>
+                  <select id="transaction-type">
+                    <option value="">Продажа и аренда</option>
+                    <option value="rent">Аренда</option>
+                    <option value="sale">Продажа</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Источник</span>
+                  <select id="source"><option value="">Все площадки</option></select>
+                </label>
+
+                <label class="field">
+                  <span>Повторы публикации</span>
+                  <select id="duplicate-mode">
+                    <option value="">Любые</option>
+                    <option value="unique">Уникальные</option>
+                    <option value="duplicate">С повторами</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Новостройка</span>
+                  <select id="new-building">
+                    <option value="">Любой фонд</option>
+                    <option value="1">Только новостройки</option>
+                    <option value="0">Только вторичный фонд</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Мебель</span>
+                  <select id="furnished">
+                    <option value="">Неважно</option>
+                    <option value="1">С мебелью</option>
+                    <option value="0">Без мебели</option>
+                  </select>
+                </label>
+
+                <label class="check-field">
+                  <input id="active-only" type="checkbox" checked />
+                  <span aria-hidden="true"></span>
+                  Только активные
+                </label>
+              </div>
+            </div>
+
+          </form>
+
+          <div class="source-strip" id="source-strip" aria-label="Источники объявлений"></div>
+
+          <div class="list-toolbar">
+            <span><strong id="result-count">0</strong> <span id="result-word">объявлений</span></span>
+            <details class="sort-menu" id="sort-menu">
+              <summary aria-label="Открыть варианты сортировки">
+                <svg class="sort-menu__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14m0 0-3-3m3 3 3-3M16 19V5m0 0-3 3m3-3 3 3" /></svg>
+                <span id="sort-current">Новые</span>
+                <svg class="sort-menu__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
+              </summary>
+              <div class="sort-options" role="radiogroup" aria-label="Сортировка списка">
+                <label class="sort-option"><input type="radio" name="sort" value="newest" data-label="Новые" checked /><span><svg class="sort-option__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v16m0 0-3-3m3 3 3-3M18 20V4m0 0-3 3m3-3 3 3" /></svg>Новые</span></label>
+                <label class="sort-option"><input type="radio" name="sort" value="price-asc" data-label="Сначала дешевле" /><span><svg class="sort-option__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16m0 0-4-4m4 4 4-4M5 6h4M5 10h4" /></svg>Сначала дешевле</span></label>
+                <label class="sort-option"><input type="radio" name="sort" value="price-desc" data-label="Сначала дороже" /><span><svg class="sort-option__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V4m0 0 4 4m-4-4L8 8M15 14h4M15 18h4" /></svg>Сначала дороже</span></label>
+                <label class="sort-option"><input type="radio" name="sort" value="area-desc" data-label="Больше площадь" /><span><svg class="sort-option__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H4v4m0-4 6 6m6-6h4v4m0-4-6 6M8 20H4v-4m0 4 6-6m6 6h4v-4m0 4-6-6" /></svg>Больше площадь</span></label>
+              </div>
+            </details>
+            <span class="updated-at" id="updated-at"></span>
+          </div>
+
+          <div class="listing-list" id="listing-list" aria-live="polite">
+            <div class="loading-state">
+              <span class="loader"></span>
+              <strong>Загружаем объявления</strong>
+              <p>Читаем актуальные данные из SQLite</p>
+            </div>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <dialog class="listing-dialog" id="listing-dialog" aria-labelledby="listing-dialog-title">
+      <div class="listing-dialog__surface">
+        <button class="listing-dialog__close" id="listing-dialog-close" type="button" aria-label="Закрыть подробную информацию">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        </button>
+        <div class="listing-dialog__content" id="listing-dialog-content"></div>
+      </div>
+    </dialog>
+
+    <template id="listing-card-template">
+      <article class="listing-card" role="button" tabindex="0" aria-haspopup="dialog">
+        <div class="card-content">
+          <div class="card-topline">
+            <span class="source-badge"></span>
+            <span class="date"></span>
+          </div>
+          <h2></h2>
+          <div class="property-facts"></div>
+          <div class="location-line">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s6-6.5 6-12a6 6 0 1 0-12 0c0 5.5 6 12 6 12Z" /><circle cx="12" cy="9" r="2" /></svg>
+            <span></span>
+          </div>
+          <div class="card-footer">
+            <div class="price"></div>
+          </div>
+        </div>
+        <div class="card-media" hidden>
+          <img alt="" loading="lazy" decoding="async" />
+        </div>
+      </article>
+    </template>
+
+    <script src="/vendor/leaflet/leaflet.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
+    <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet/leaflet-maplibre-gl.js"></script>
+    <script src="/app.js" defer></script>
+  </body>
+</html>
